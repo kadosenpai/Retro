@@ -36,8 +36,7 @@ if [ ${#artifacts[@]} -eq 0 ]; then
   exit 1
 fi
 cp -v "${artifacts[@]}" "$OUT/"
-CORE_LIB="$WORK/libmgba_core.a"
-cp "${artifacts[0]}" "$CORE_LIB"
+CORE_LIB="${artifacts[0]}"
 
 echo "==> Ghép shim + nhân thành Wasm"
 emcc "$ROOT/frontend/libretro_shim.c" "$CORE_LIB" \
@@ -55,6 +54,10 @@ emcc "$ROOT/frontend/libretro_shim.c" "$CORE_LIB" \
   -sEXPORTED_FUNCTIONS=_malloc,_free \
   -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAP16,HEAPU32,FS \
   -o "$OUT/mgba_libretro.js"
+
+echo "==> Nén Wasm (.gz) để tải lên được nơi giới hạn 1MB"
+gzip -9 -k -f "$OUT/mgba_libretro.wasm"
+
 {
   echo "core: libretro/mgba"
   echo "ref: $MGBA_REF"

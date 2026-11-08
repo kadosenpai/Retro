@@ -10,9 +10,12 @@ export interface SystemButton {
  * cx, cy: tâm, tính bằng % của vùng overlay.
  * w, h: kích thước, tính bằng % cạnh NGẮN của vùng overlay.
  * kind 'dpad': buttons = [UP, DOWN, LEFT, RIGHT].
+ * kind 'menu': nút mở menu trong game (buttons rỗng).
+ * id: định danh duy nhất trong một bố cục (dùng để lưu vị trí/kích thước người dùng tuỳ chỉnh).
  */
 export interface TouchControl {
-  kind: 'dpad' | 'button' | 'pill';
+  id: string;
+  kind: 'dpad' | 'button' | 'pill' | 'menu';
   buttons: JoypadId[];
   label?: string;
   cx: number;

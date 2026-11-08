@@ -5,5 +5,3 @@ dist/
 .env
 .env.*
 !.env.example
-core-build/work/
-core-build/out/
