@@ -3,7 +3,7 @@
  * - File còn lại (JS/CSS đã băm tên, nhân giả lập, biểu tượng): ưu tiên bản đã lưu.
  * Khi thay nhân giả lập mà giữ nguyên tên file, hãy tăng số VERSION bên dưới để xoá bản cũ.
  */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = `retro-web-${VERSION}`;
 const SCOPE = self.registration.scope;
 const PRECACHE = [
