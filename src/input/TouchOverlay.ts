@@ -55,18 +55,37 @@ interface Item {
   scale: number;
 }
 
-const STYLE_ID = 'tv-touch-style-v2';
+const STYLE_ID = 'tv-touch-style-v3';
 const CSS = `
 .tv-root{position:absolute;inset:0;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overflow:hidden}
-.tv-ctrl{position:absolute;box-sizing:border-box;display:flex;align-items:center;justify-content:center;color:#f2f2f2;font:800 22px Inter,system-ui,sans-serif;background:rgba(22,22,27,.9);border:2px solid rgba(255,255,255,.28);pointer-events:none;transition:background .05s}
-.tv-root.land .tv-ctrl{background:rgba(22,22,27,.6)}
+.tv-ctrl{position:absolute;box-sizing:border-box;display:flex;align-items:center;justify-content:center;isolation:isolate;color:#fff;font:800 22px Inter,system-ui,sans-serif;pointer-events:none;
+  background:radial-gradient(130% 100% at 50% 0%,rgba(255,255,255,.13) 0%,rgba(255,255,255,0) 58%),radial-gradient(100% 100% at 50% 100%,rgba(0,0,0,.55) 0%,rgba(0,0,0,0) 60%),#101012;
+  border:1.5px solid rgba(255,255,255,.17);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -10px 18px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.45);
+  transition:background .05s,transform .05s}
+.tv-root.land .tv-ctrl{opacity:.82}
 .tv-btn,.tv-menu{border-radius:50%}
 .tv-menu{font-size:16px}
 .tv-pill{border-radius:999px;font-size:13px;letter-spacing:.12em;text-transform:uppercase}
-.tv-dpad{border-radius:50%}
-.tv-thumb{position:absolute;left:31%;top:31%;width:38%;height:38%;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.38);transition:transform .04s}
-.tv-ctrl.on{background:rgba(74,74,84,.95)}
-.tv-dpad.on .tv-thumb{background:rgba(255,255,255,.34)}
+.tv-dpad{border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,#08080a 0,#0c0c0e 46%,#25252a 78%,#3a3a40 100%);
+  border:1.5px solid rgba(255,255,255,.2);
+  box-shadow:inset 0 2px 14px rgba(0,0,0,.7),inset 0 0 0 6px rgba(255,255,255,.03),0 3px 12px rgba(0,0,0,.5)}
+.tv-thumb{position:absolute;left:31%;top:31%;width:38%;height:38%;border-radius:50%;
+  background:radial-gradient(circle at 50% 30%,#b4b4b8 0%,#8c8c91 55%,#76767b 100%);
+  border:0;box-shadow:0 3px 10px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .04s}
+.tv-shoulder{background:none;border:0;box-shadow:none;border-radius:0}
+.tv-shoulder::before{content:'';position:absolute;inset:0;z-index:-1;border-radius:16px;
+  background:radial-gradient(130% 100% at 50% 0%,rgba(255,255,255,.13) 0%,rgba(255,255,255,0) 58%),radial-gradient(100% 100% at 50% 100%,rgba(0,0,0,.55) 0%,rgba(0,0,0,0) 60%),#101012;
+  border:1.5px solid rgba(255,255,255,.17);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -8px 14px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.45)}
+.tv-shoulder.l::before{transform:skewX(-14deg)}
+.tv-shoulder.r::before{transform:skewX(14deg)}
+.tv-ctrl.on{background:radial-gradient(130% 100% at 50% 0%,rgba(255,255,255,.3) 0%,rgba(255,255,255,.04) 62%),#2a2a2f;transform:scale(.97)}
+.tv-shoulder.on{background:none;transform:scale(.97)}
+.tv-shoulder.on::before{background:radial-gradient(130% 100% at 50% 0%,rgba(255,255,255,.3) 0%,rgba(255,255,255,.04) 62%),#2a2a2f}
+.tv-dpad.on{background:radial-gradient(circle at 50% 50%,#101012 0,#18181b 46%,#36363c 78%,#4a4a52 100%);transform:none}
+.tv-dpad.on .tv-thumb{background:radial-gradient(circle at 50% 30%,#d2d2d6 0%,#a6a6ab 60%,#8c8c91 100%)}
 .tv-ctrl.sel{outline:3px solid #fff;outline-offset:3px}
 .tv-root.edit .tv-ctrl{border-style:dashed}
 `;
@@ -206,6 +225,7 @@ export class TouchOverlay {
       const ov = this.overrides[ctrl.id];
       const el = document.createElement('div');
       el.className = `tv-ctrl tv-${ctrl.kind === 'button' ? 'btn' : ctrl.kind}`;
+      if (ctrl.id === 'L' || ctrl.id === 'R') el.classList.add('tv-shoulder', ctrl.id === 'L' ? 'l' : 'r');
       const item: Item = {
         ctrl,
         el,

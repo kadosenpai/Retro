@@ -640,7 +640,7 @@ button.row:hover {
 }
 .play.land .screen-region {
   position: absolute;
-  inset: 0 calc(env(safe-area-inset-right) + 17%) 0 calc(env(safe-area-inset-left) + 17%);
+  inset: 0 calc(env(safe-area-inset-right) + 17%) 12% calc(env(safe-area-inset-left) + 17%);
   padding-top: 0;
 }
 .play.land .pad {
