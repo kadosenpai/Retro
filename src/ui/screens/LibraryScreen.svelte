@@ -14,6 +14,9 @@
     onadd,
     onsettings,
     onmore,
+    backupDue = false,
+    onbackup,
+    onsnooze,
   }: {
     roms: RomInfo[];
     currentRomId: string | null;
@@ -24,6 +27,9 @@
     onadd: () => void;
     onsettings: () => void;
     onmore: (r: RomInfo) => void;
+    backupDue?: boolean;
+    onbackup: () => void;
+    onsnooze: () => void;
   } = $props();
 
   let query = $state('');
@@ -85,6 +91,19 @@
   <Icon name="search" size={20} />
   <input type="search" placeholder="Tìm tên ROM hoặc mã ID..." bind:value={query} />
 </label>
+
+{#if backupDue}
+  <div class="backup-banner glass" role="status">
+    <span class="bb-text">
+      <strong>Nên sao lưu save game.</strong> Dữ liệu chỉ nằm trong trình duyệt này; xoá dữ liệu
+      duyệt web sẽ làm mất.
+    </span>
+    <span class="bb-actions">
+      <button class="btn small primary" onclick={onbackup}>Sao lưu</button>
+      <button class="btn small" onclick={onsnooze}>Để sau</button>
+    </span>
+  </div>
+{/if}
 
 <div class="section-head">
   <Icon name="layers" size={20} />

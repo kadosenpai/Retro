@@ -623,8 +623,11 @@ button.row:hover {
 }
 .screen-region canvas {
   display: block;
-  width: min(100cqw, 150cqh);
-  aspect-ratio: 3 / 2;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   background: #000;
 }
 .pad {
@@ -875,4 +878,38 @@ button.row:hover {
   .empty .btn {
     grid-area: btn;
   }
+}
+
+.chip-label {
+  margin: 12px 18px 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.chips.tight {
+  padding-top: 8px;
+}
+
+/* ---------- Nhắc sao lưu ---------- */
+.backup-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 16px 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.backup-banner .bb-text {
+  flex: 1 1 220px;
+}
+.backup-banner .bb-actions {
+  display: flex;
+  gap: 8px;
+}
+.row.static {
+  cursor: default;
+  align-items: flex-start;
 }

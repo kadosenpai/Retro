@@ -1,5 +1,6 @@
 import { toRGBA } from './pixelConvert';
 import { computeViewport } from './Scaler';
+import { DEFAULT_RENDER_OPTIONS, sanitizeRenderOptions } from './types';
 import type { AnyCanvas, FrameData, RenderOptions, Renderer } from './types';
 
 type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -14,10 +15,13 @@ export class FallbackCanvas2D implements Renderer {
   private rgba: Uint8ClampedArray | undefined;
   private hasFrame = false;
 
+  private opts: RenderOptions;
+
   constructor(
     private readonly canvas: AnyCanvas,
-    private readonly opts: RenderOptions = { integerScale: true },
+    opts: RenderOptions = DEFAULT_RENDER_OPTIONS,
   ) {
+    this.opts = sanitizeRenderOptions(opts);
     const ctx = (canvas as HTMLCanvasElement).getContext('2d', { alpha: false });
     if (!ctx) throw new Error('Canvas 2D không khả dụng');
     this.ctx = ctx;
@@ -26,6 +30,11 @@ export class FallbackCanvas2D implements Renderer {
     const sctx = (this.src as HTMLCanvasElement).getContext('2d');
     if (!sctx) throw new Error('Canvas 2D không khả dụng');
     this.srcCtx = sctx;
+  }
+
+  setOptions(opts: Partial<RenderOptions>): void {
+    this.opts = sanitizeRenderOptions({ ...this.opts, ...opts });
+    this.paint();
   }
 
   resize(width: number, height: number): void {
@@ -50,9 +59,10 @@ export class FallbackCanvas2D implements Renderer {
   private paint(): void {
     if (!this.hasFrame) return;
     const { width: cw, height: ch } = this.canvas;
-    const vp = computeViewport(cw, ch, this.src.width, this.src.height, this.opts.aspect, this.opts.integerScale);
+    const vp = computeViewport(cw, ch, this.src.width, this.src.height, this.opts.scale);
     const ctx = this.ctx;
-    ctx.imageSmoothingEnabled = false;
+    // Canvas 2D không có shader: chỉ có pixel thô hoặc làm mượt.
+    ctx.imageSmoothingEnabled = this.opts.filter === 'smooth';
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, cw, ch);
     ctx.drawImage(this.src as CanvasImageSource, 0, 0, this.src.width, this.src.height, vp.x, vp.y, vp.width, vp.height);

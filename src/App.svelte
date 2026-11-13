@@ -2,6 +2,7 @@
   import { onMount, untrack } from 'svelte';
   import { gba } from './systems/gba';
   import { resolveCoreUrl } from './config';
+  import { DEFAULT_RENDER_OPTIONS, sanitizeRenderOptions } from './render/types';
   import type { JoypadId } from './systems/libretro';
   import { EmulatorHost } from './engine/EmulatorHost';
   import { InputManager } from './input/InputManager';
@@ -28,14 +29,24 @@
   } from './storage/SaveStore';
   import { getSetting, setSetting } from './storage/SettingsStore';
   import { makeThumbnail } from './storage/thumbnail';
-  import { exportBackup, importBackup } from './storage/BackupService';
-  import { downloadBytes, savFileName, validateSav } from './storage/SavFile';
-  import { deleteCheats, loadCheats, saveCheats, validateCode, type CheatItem } from './storage/CheatStore';
-  import { fetchBoxArt, toCoverBlob } from './storage/Covers';
+  import { importBackup } from './storage/BackupService';
+  import { deleteCheats, loadCheats, saveCheats, type CheatItem } from './storage/CheatStore';
+  import {
+    getLastBackup,
+    getStorageInfo,
+    isBackupDue,
+    requestPersist,
+    runBackupDownload,
+    snoozeBackup,
+    type StorageInfo,
+  } from './storage/Persist';
+  import { applyAutoCover, applyPickedCover } from './app/covers';
+  import { toggled, without, withCheat } from './app/cheats';
+  import { commitSavImport, exportSavFile, planSavImport, sleep } from './app/savTransfer';
   import { emptyLayouts, loadLayouts, saveLayouts, type SavedLayouts } from './storage/LayoutStore';
   import type { SortKey, UiSettings } from './ui/types';
-  import Icon from './ui/components/Icon.svelte';
   import LibraryScreen from './ui/screens/LibraryScreen.svelte';
+  import PlayScreen from './ui/screens/PlayScreen.svelte';
   import SettingsSheet from './ui/screens/SettingsSheet.svelte';
   import PlayMenu from './ui/screens/PlayMenu.svelte';
   import KeysSheet from './ui/screens/KeysSheet.svelte';
@@ -46,7 +57,6 @@
 
   type SheetName = 'settings' | 'menu' | 'keys' | 'data' | 'states' | 'cheats' | null;
 
-  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const mqLandscape = window.matchMedia('(orientation: landscape) and (pointer: coarse)');
 
   // ---------- Trạng thái ----------
@@ -80,6 +90,10 @@
   let slots = $state<(StateRecord | null)[]>(Array(STATE_SLOTS).fill(null));
   let thumbUrls = $state<(string | null)[]>(Array(STATE_SLOTS).fill(null));
 
+  let backupDue = $state(false);
+  let lastBackup = $state<number | null>(null);
+  let storageInfo = $state<StorageInfo | null>(null);
+
   let cheats = $state<CheatItem[]>([]);
   let cheatsSupported = $state(true);
 
@@ -103,6 +117,8 @@
     sticky: false,
     showStats: false,
     sort: 'recent',
+    scale: DEFAULT_RENDER_OPTIONS.scale,
+    filter: DEFAULT_RENDER_OPTIONS.filter,
   });
 
   let toastMsg = $state('');
@@ -186,7 +202,7 @@
 
     getSetting<Partial<UiSettings>>('ui.settings')
       .then((v) => {
-        if (v) settings = { ...settings, ...v };
+        if (v) settings = { ...settings, ...v, ...sanitizeRenderOptions(v) };
       })
       .catch(() => {});
     loadLayouts(gba.id).then((l) => (layouts = l));
@@ -218,9 +234,19 @@
     };
   });
 
+  // Co giãn màn hình + bộ lọc theo cài đặt.
+  $effect(() => {
+    host?.setRenderOptions({ scale: settings.scale, filter: settings.filter });
+  });
+
   // Âm lượng theo cài đặt (chỉ bật/tắt).
   $effect(() => {
     host?.setVolume(settings.sound ? settings.volume / 100 : 0);
+  });
+
+  // Mở bảng Sao lưu thì cập nhật dung lượng / trạng thái bảo vệ.
+  $effect(() => {
+    if (sheet === 'data') untrack(() => void refreshBackupState());
   });
 
   // Phím ảo: tạo khi đang ở màn chơi (hoặc đang chỉnh) và không bị ẩn.
@@ -279,6 +305,29 @@
     } catch {
       /* IndexedDB không dùng được (vd. chế độ riêng tư): bỏ qua thư viện */
     }
+    void refreshBackupState();
+  }
+
+  // ---------- Lưu trữ bền vững & nhắc sao lưu ----------
+  async function refreshBackupState() {
+    backupDue = await isBackupDue(roms.length).catch(() => false);
+    lastBackup = await getLastBackup();
+    storageInfo = await getStorageInfo();
+  }
+
+  async function protectData() {
+    const ok = await requestPersist();
+    toast(
+      ok
+        ? 'Đã bật bảo vệ dữ liệu'
+        : 'Trình duyệt chưa cấp quyền bảo vệ. Hãy cài trang như ứng dụng hoặc dùng thường xuyên rồi thử lại; nhớ sao lưu ra file.',
+    );
+    await refreshBackupState();
+  }
+
+  async function snoozeBackupReminder() {
+    await snoozeBackup();
+    await refreshBackupState();
   }
 
   async function refreshSlots() {
@@ -371,6 +420,7 @@
         toast('Không lưu được ' + f.name + ' vào thư viện');
       }
     }
+    if (added.length) void requestPersist(); // xin bảo vệ dữ liệu ngay khi có game đầu tiên
     await refreshRoms();
     if (added.length === 1) await openRom(added[0]);
     else if (added.length > 1) toast(`Đã thêm ${added.length} băng`);
@@ -417,9 +467,8 @@
   // ---------- Ảnh bìa ----------
   /** Tải ảnh bìa gốc theo tên file. `report`: báo kết quả cho người dùng. */
   async function autoCover(r: RomInfo, report: boolean) {
-    const art = await fetchBoxArt(gba.id, r.fileBase ?? r.name);
-    if (art) {
-      await setCover(r.id, art, 'art');
+    const ok = await applyAutoCover(r).catch(() => false);
+    if (ok) {
       await refreshRoms();
       if (report) toast(`Đã tải ảnh bìa cho "${r.name}"`);
     } else if (report) {
@@ -439,12 +488,10 @@
     el.value = '';
     const r = coverTarget;
     if (!file || !r) return;
-    const blob = await toCoverBlob(file);
-    if (!blob) {
+    if (!(await applyPickedCover(r, file))) {
       toast('Không đọc được file ảnh này');
       return;
     }
-    await setCover(r.id, blob, 'user');
     await refreshRoms();
     toast('Đã đổi ảnh bìa');
   }
@@ -554,21 +601,20 @@
   }
 
   function addCheat(name: string, code: string): string | null {
-    const err = validateCode(code);
-    if (err) return err;
-    const id = crypto.randomUUID();
-    cheats = [...cheats, { id, name: name || `Cheat ${cheats.length + 1}`, code: code.trim(), enabled: true }];
+    const r = withCheat(cheats, name, code);
+    if ('error' in r) return r.error;
+    cheats = r.list;
     pushCheats();
     return null;
   }
 
   function toggleCheat(id: string, enabled: boolean) {
-    cheats = cheats.map((c) => (c.id === id ? { ...c, enabled } : c));
+    cheats = toggled(cheats, id, enabled);
     pushCheats();
   }
 
   function removeCheat(id: string) {
-    cheats = cheats.filter((c) => c.id !== id);
+    cheats = without(cheats, id);
     pushCheats();
   }
 
@@ -591,28 +637,14 @@
       sheetReturn = null;
       toast(`Đã nạp ô ${slot + 1}`);
     } else {
-      toast('Không nạp được state này');
+      toast('Không nạp được state này. Có thể nó được lưu bằng phiên bản lõi giả lập khác (sau khi cập nhật web).');
     }
   }
 
   // ---------- .sav của từng game ----------
   async function exportSav(r: RomInfo) {
     gameSheet = null;
-    try {
-      if (r.id === currentRomId) {
-        host?.flushSram(); // lấy dữ liệu mới nhất từ game đang nạp
-        await sleep(300);
-      }
-      const data = await loadSram(r.id);
-      if (!data) {
-        toast(`"${r.name}" chưa có dữ liệu lưu. Hãy lưu trong game (menu Save) rồi thử lại.`);
-        return;
-      }
-      downloadBytes(data, savFileName(r.name));
-      toast(`Đã xuất ${savFileName(r.name)} (${data.byteLength} byte)`);
-    } catch {
-      toast('Xuất .sav thất bại');
-    }
+    toast(await exportSavFile(r, r.id === currentRomId ? () => host?.flushSram() : undefined));
   }
 
   function pickSav(r: RomInfo) {
@@ -628,10 +660,9 @@
     const r = savTarget;
     if (!file || !r || !host) return;
     try {
-      const buf = await file.arrayBuffer();
-      const err = validateSav(buf);
-      if (err) {
-        toast('Nhập .sav thất bại: ' + err);
+      const plan = await planSavImport(r, file);
+      if ('error' in plan) {
+        toast('Nhập .sav thất bại: ' + plan.error);
         return;
       }
       const loaded = r.id === currentRomId;
@@ -640,19 +671,14 @@
         playing = false;
         await sleep(300);
       }
-      const old = await loadSram(r.id);
-      const note =
-        old && old.byteLength !== buf.byteLength
-          ? ` (khác kích thước save hiện tại: ${old.byteLength} byte)`
-          : '';
-      if (old && !confirm(`Ghi đè dữ liệu lưu của "${r.name}" bằng file ${file.name}?${note}`)) {
+      if (plan.overwrite && !confirm(`Ghi đè dữ liệu lưu của "${r.name}" bằng file ${file.name}?${plan.overwrite.note}`)) {
         if (loaded && screen === 'play') {
           host.run();
           playing = true;
         }
         return;
       }
-      await saveSram(r.id, buf);
+      await commitSavImport(r, plan.buf);
       toast(`Đã nhập ${file.name} cho "${r.name}"`);
       if (loaded) {
         const rom = await getRomData(r.id);
@@ -670,13 +696,9 @@
   // ---------- Sao lưu toàn bộ ----------
   async function doExport() {
     try {
-      const { blob, summary } = await exportBackup();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `retro-web-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      const summary = await runBackupDownload();
       toast(`Đã xuất: ${summary.sram} save game, ${summary.states} save state`);
+      await refreshBackupState();
     } catch (e) {
       toast('Xuất thất bại: ' + (e instanceof Error ? e.message : String(e)));
     }
@@ -744,56 +766,34 @@
       onadd={pickRom}
       onsettings={() => (sheet = 'settings')}
       onmore={(r) => (gameSheet = r)}
+      {backupDue}
+      onbackup={doExport}
+      onsnooze={snoozeBackupReminder}
     />
   </div>
 
-  <!-- Màn chơi (luôn nằm trong DOM để giữ canvas cho Worker) -->
-  <section class="play" class:land={landscapeTouch} class:gone={screen !== 'play'}>
-    <div class="screen-region">
-      <canvas bind:this={canvas} width="240" height="160"></canvas>
-    </div>
-
-    {#if settings.showStats}
-      <p class="hud">
-        {fps.toFixed(1)} fps · {rendererName} · {audioMode}{#if audioFillMs !== null}
-          · đệm {audioFillMs.toFixed(0)} ms · vỡ tiếng {underruns}{/if}
-      </p>
-    {/if}
-
-    <div class="pad" class:off={settings.hidePad && !editing} bind:this={padBox}></div>
-
-    {#if settings.hidePad && !editing}
-      <button class="iconbtn solid menu-fab" onclick={openMenu} aria-label="Menu">
-        <Icon name="menu" />
-      </button>
-    {/if}
-
-    {#if editing}
-      <div class="editbar glass">
-        <div class="et">Chỉnh nút ảo · màn hình {orient === 'landscape' ? 'ngang' : 'dọc'}</div>
-        <div class="ehint">
-          {selectedCtrl
-            ? 'Kéo nút để di chuyển. Dùng thanh trượt để đổi kích thước.'
-            : 'Chạm vào một nút để chọn, rồi kéo để di chuyển.'}
-        </div>
-        <input
-          class="slider"
-          type="range"
-          min="50"
-          max="200"
-          value={Math.round(selScale * 100)}
-          disabled={!selectedCtrl}
-          aria-label="Kích thước"
-          oninput={onScaleInput}
-          onchange={onScaleCommit}
-        />
-        <div class="erow">
-          <button class="btn small" onclick={resetLayout}>Mặc định</button>
-          <button class="btn small primary" onclick={finishEdit}>Xong</button>
-        </div>
-      </div>
-    {/if}
-  </section>
+  <PlayScreen
+    bind:canvas
+    bind:padBox
+    active={screen === 'play'}
+    landscape={landscapeTouch}
+    hidePad={settings.hidePad}
+    showStats={settings.showStats}
+    {fps}
+    {rendererName}
+    {audioMode}
+    {audioFillMs}
+    {underruns}
+    {editing}
+    {orient}
+    hasSelection={selectedCtrl !== null}
+    {selScale}
+    onmenu={openMenu}
+    onscaleinput={onScaleInput}
+    onscalecommit={onScaleCommit}
+    onresetlayout={resetLayout}
+    onfinishedit={finishEdit}
+  />
 </div>
 
 <!-- Bảng -->
@@ -831,7 +831,15 @@
   onreset={resetMap}
   onclose={closeChild}
 />
-<DataSheet open={sheet === 'data'} onexport={doExport} onimport={doImport} onclose={closeChild} />
+<DataSheet
+  open={sheet === 'data'}
+  info={storageInfo}
+  {lastBackup}
+  onpersist={protectData}
+  onexport={doExport}
+  onimport={doImport}
+  onclose={closeChild}
+/>
 <CheatsSheet
   open={sheet === 'cheats'}
   {cheats}

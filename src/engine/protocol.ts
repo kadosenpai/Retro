@@ -1,5 +1,6 @@
 // Thông điệp giữa luồng chính (Host) và Worker chạy giả lập.
 import type { AudioAttach } from '../audio/types';
+import type { RenderOptions } from '../render/types';
 
 /** 0 = 0RGB1555, 1 = XRGB8888, 2 = RGB565 (theo enum retro_pixel_format). */
 export type PixelFormat = 0 | 1 | 2;
@@ -29,6 +30,7 @@ export type HostToWorker =
   | { type: 'init'; coreJsUrl: string }
   | { type: 'attachCanvas'; canvas: OffscreenCanvas }
   | { type: 'resize'; width: number; height: number }
+  | { type: 'renderOptions'; options: RenderOptions }
   | { type: 'audioAttach'; attach: AudioAttach }
   /** key: định danh ROM (dùng để gắn SRAM trả về); sram: dữ liệu lưu đã có, nạp trước khi chạy. */
   | { type: 'loadRom'; rom: ArrayBuffer; key?: string; sram?: ArrayBuffer; cheats?: CheatEntry[] }

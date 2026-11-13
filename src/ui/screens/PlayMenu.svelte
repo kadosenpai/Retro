@@ -3,6 +3,7 @@
   import Sheet from '../components/Sheet.svelte';
   import Toggle from '../components/Toggle.svelte';
   import type { UiSettings } from '../types';
+  import type { FilterMode, ScaleMode } from '../../render/types';
 
   let {
     open,
@@ -33,6 +34,19 @@
   } = $props();
 
   const SPEEDS = [0.5, 1, 1.5, 2, 3, 4];
+  const SCALES: { key: ScaleMode; label: string }[] = [
+    { key: 'fit', label: 'Vừa khung' },
+    { key: 'integer', label: 'Số nguyên' },
+    { key: 'fill', label: 'Lấp đầy' },
+    { key: 'wide', label: '4:3' },
+  ];
+  const FILTERS: { key: FilterMode; label: string }[] = [
+    { key: 'sharp', label: 'Pixel thô' },
+    { key: 'crisp', label: 'Sắc mượt' },
+    { key: 'smooth', label: 'Làm mượt' },
+    { key: 'lcd', label: 'LCD' },
+    { key: 'crt', label: 'CRT' },
+  ];
 </script>
 
 <Sheet {open} title="Menu" {onclose}>
@@ -69,6 +83,26 @@
     <div class="chips">
       {#each SPEEDS as v (v)}
         <button class="chip" class:on={speed === v} onclick={() => onspeed(v)}>{v}×</button>
+      {/each}
+    </div>
+  </div>
+
+  <h3 class="group-title">Hình ảnh</h3>
+  <div class="group">
+    <p class="chip-label">Co giãn màn hình</p>
+    <div class="chips tight">
+      {#each SCALES as s (s.key)}
+        <button class="chip" class:on={settings.scale === s.key} onclick={() => onchange({ scale: s.key })}>
+          {s.label}
+        </button>
+      {/each}
+    </div>
+    <p class="chip-label">Bộ lọc</p>
+    <div class="chips tight">
+      {#each FILTERS as f (f.key)}
+        <button class="chip" class:on={settings.filter === f.key} onclick={() => onchange({ filter: f.key })}>
+          {f.label}
+        </button>
       {/each}
     </div>
   </div>

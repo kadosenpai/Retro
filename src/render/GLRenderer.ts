@@ -1,6 +1,7 @@
 import { to565 } from './pixelConvert';
 import { computeViewport } from './Scaler';
 import { fragmentSource, vertexSource } from './shaders/passthrough';
+import { DEFAULT_RENDER_OPTIONS, sanitizeRenderOptions } from './types';
 import type { AnyCanvas, FrameData, RenderOptions, Renderer } from './types';
 
 export class GLRenderer implements Renderer {
@@ -9,6 +10,10 @@ export class GLRenderer implements Renderer {
   private program: WebGLProgram;
   private texture: WebGLTexture;
   private uBgr: WebGLUniformLocation | null;
+  private uTexSize: WebGLUniformLocation | null;
+  private uScale: WebGLUniformLocation | null;
+  private uMode: WebGLUniformLocation | null;
+  private opts: RenderOptions;
   private texKey = '';
   private srcW = 0;
   private srcH = 0;
@@ -16,8 +21,9 @@ export class GLRenderer implements Renderer {
 
   constructor(
     private readonly canvas: AnyCanvas,
-    private readonly opts: RenderOptions = { integerScale: true },
+    opts: RenderOptions = DEFAULT_RENDER_OPTIONS,
   ) {
+    this.opts = sanitizeRenderOptions(opts);
     const attrs: WebGLContextAttributes = {
       alpha: false,
       antialias: false,
@@ -36,6 +42,9 @@ export class GLRenderer implements Renderer {
     this.program = this.link(vertexSource, fragmentSource);
     gl.useProgram(this.program);
     this.uBgr = gl.getUniformLocation(this.program, 'uBgr');
+    this.uTexSize = gl.getUniformLocation(this.program, 'uTexSize');
+    this.uScale = gl.getUniformLocation(this.program, 'uScale');
+    this.uMode = gl.getUniformLocation(this.program, 'uMode');
 
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -48,11 +57,27 @@ export class GLRenderer implements Renderer {
     if (!tex) throw new Error('Không tạo được texture');
     this.texture = tex;
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    this.applyTextureFilter();
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  }
+
+  private static readonly MODE: Record<string, number> = { sharp: 0, smooth: 1, crisp: 2, lcd: 3, crt: 4 };
+
+  /** Chỉ chế độ "sharp" dùng lấy mẫu gần nhất; các chế độ khác cần lấy mẫu tuyến tính. */
+  private applyTextureFilter(): void {
+    const gl = this.gl;
+    const f = this.opts.filter === 'sharp' ? gl.NEAREST : gl.LINEAR;
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+  }
+
+  setOptions(opts: Partial<RenderOptions>): void {
+    this.opts = sanitizeRenderOptions({ ...this.opts, ...opts });
+    this.applyTextureFilter();
+    this.paint();
   }
 
   private link(vs: string, fs: string): WebGLProgram {
@@ -112,7 +137,10 @@ export class GLRenderer implements Renderer {
     const gl = this.gl;
     const cw = gl.drawingBufferWidth;
     const ch = gl.drawingBufferHeight;
-    const vp = computeViewport(cw, ch, this.srcW, this.srcH, this.opts.aspect, this.opts.integerScale);
+    const vp = computeViewport(cw, ch, this.srcW, this.srcH, this.opts.scale);
+    gl.uniform2f(this.uTexSize, this.srcW, this.srcH);
+    gl.uniform1f(this.uScale, vp.height / this.srcH);
+    gl.uniform1f(this.uMode, GLRenderer.MODE[this.opts.filter] ?? 2);
     gl.viewport(0, 0, cw, ch);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);

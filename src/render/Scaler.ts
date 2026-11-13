@@ -1,3 +1,5 @@
+import type { ScaleMode } from './types';
+
 export interface Viewport {
   x: number;
   y: number;
@@ -5,20 +7,22 @@ export interface Viewport {
   height: number;
 }
 
-/** Tính vùng hiển thị giữ tỉ lệ, căn giữa; tuỳ chọn phóng to theo số nguyên. */
+/** Tính vùng hiển thị trong canvas theo chế độ co giãn; luôn căn giữa. */
 export function computeViewport(
   canvasW: number,
   canvasH: number,
   srcW: number,
   srcH: number,
-  aspect: number = srcW / srcH,
-  integer = true,
+  mode: ScaleMode = 'fit',
 ): Viewport {
   if (canvasW <= 0 || canvasH <= 0 || srcW <= 0 || srcH <= 0) {
     return { x: 0, y: 0, width: 0, height: 0 };
   }
+  if (mode === 'fill') return { x: 0, y: 0, width: canvasW, height: canvasH };
+
+  const aspect = mode === 'wide' ? 4 / 3 : srcW / srcH;
   let scale = Math.min(canvasH / srcH, canvasW / (srcH * aspect));
-  if (integer && scale >= 1) scale = Math.floor(scale);
+  if (mode === 'integer' && scale >= 1) scale = Math.floor(scale);
   const width = Math.max(1, Math.round(srcH * aspect * scale));
   const height = Math.max(1, Math.round(srcH * scale));
   return {

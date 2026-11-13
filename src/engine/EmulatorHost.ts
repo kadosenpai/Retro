@@ -1,6 +1,6 @@
 import { AudioEngine } from '../audio/AudioEngine';
 import { createRenderer } from '../render/createRenderer';
-import type { Renderer } from '../render/types';
+import { DEFAULT_RENDER_OPTIONS, type RenderOptions, type Renderer } from '../render/types';
 import type { CheatEntry, FramePayload, GameInfo, HostToWorker, PixelFormat, WorkerToHost } from './protocol';
 
 export interface HostEvents {
@@ -25,6 +25,7 @@ export class EmulatorHost {
   private rejectPending?: (e: Error) => void;
   private stateLoadedResolve?: (ok: boolean) => void;
   private mainRenderer: Renderer | null = null;
+  private renderOptions: RenderOptions = { ...DEFAULT_RENDER_OPTIONS };
   private resizeObserver: ResizeObserver | null = null;
   private audio: AudioEngine | null = null;
 
@@ -100,10 +101,11 @@ export class EmulatorHost {
     let mode: 'worker' | 'main';
     if (typeof canvas.transferControlToOffscreen === 'function') {
       const off = canvas.transferControlToOffscreen();
+      this.post({ type: 'renderOptions', options: this.renderOptions });
       this.post({ type: 'attachCanvas', canvas: off }, [off]);
       mode = 'worker';
     } else {
-      this.mainRenderer = createRenderer(canvas);
+      this.mainRenderer = createRenderer(canvas, this.renderOptions);
       this.events.onRenderer?.(this.mainRenderer.kind);
       mode = 'main';
     }
@@ -186,6 +188,13 @@ export class EmulatorHost {
   /** Cập nhật cheat đang áp dụng cho game đang chạy. */
   setCheats(list: CheatEntry[]): void {
     this.post({ type: 'cheats', list });
+  }
+
+  /** Đổi cách co giãn / bộ lọc hình ảnh. Nhớ giá trị để áp ngay cả khi gọi trước khi gắn canvas. */
+  setRenderOptions(opts: Partial<RenderOptions>): void {
+    this.renderOptions = { ...this.renderOptions, ...opts };
+    this.post({ type: 'renderOptions', options: this.renderOptions });
+    this.mainRenderer?.setOptions(this.renderOptions);
   }
 
   setSpeed(value: number): void {

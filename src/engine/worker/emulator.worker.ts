@@ -3,7 +3,7 @@ import { CoreBridge } from './CoreBridge';
 import { PortSink, SabSink, type AudioSink } from './AudioSink';
 import { FrameScheduler } from './FrameScheduler';
 import { createRenderer } from '../../render/createRenderer';
-import type { Renderer } from '../../render/types';
+import { DEFAULT_RENDER_OPTIONS, type RenderOptions, type Renderer } from '../../render/types';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -13,6 +13,7 @@ let framesThisSecond = 0;
 let lastStats = performance.now();
 let hasNewFrame = false;
 let renderer: Renderer | null = null;
+let renderOptions: RenderOptions = { ...DEFAULT_RENDER_OPTIONS };
 let sink: AudioSink | null = null;
 let sourceRate = 0;
 let baseFps = 60;
@@ -108,8 +109,13 @@ ctx.onmessage = async (ev: MessageEvent<HostToWorker>) => {
         break;
 
       case 'attachCanvas':
-        renderer = createRenderer(msg.canvas);
+        renderer = createRenderer(msg.canvas, renderOptions);
         send({ type: 'renderer', kind: renderer.kind });
+        break;
+
+      case 'renderOptions':
+        renderOptions = msg.options;
+        renderer?.setOptions(msg.options);
         break;
 
       case 'resize':

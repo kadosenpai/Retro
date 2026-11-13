@@ -1,3 +1,5 @@
+import type { FilterMode, ScaleMode } from '../render/types';
+
 export type SortKey = 'recent' | 'name' | 'size';
 
 /** Cài đặt giao diện, lưu trong IndexedDB (khoá 'ui.settings'). */
@@ -11,4 +13,8 @@ export interface UiSettings {
   /** Hiện FPS và thông số âm thanh trên màn chơi. */
   showStats: boolean;
   sort: SortKey;
+  /** Cách co giãn hình trong vùng hiển thị. */
+  scale: ScaleMode;
+  /** Bộ lọc hình ảnh. */
+  filter: FilterMode;
 }
