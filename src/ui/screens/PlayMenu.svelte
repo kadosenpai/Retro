@@ -36,14 +36,14 @@
   const SPEEDS = [0.5, 1, 1.5, 2, 3, 4];
   const SCALES: { key: ScaleMode; label: string }[] = [
     { key: 'integer', label: 'Mặc định' },
-    { key: 'fit', label: 'Vừa khung' },
-    { key: 'fill', label: 'Lấp đầy' },
+    { key: 'fit', label: 'Vừa' },
+    { key: 'fill', label: 'Đầy' },
     { key: 'wide', label: '4:3' },
   ];
   const FILTERS: { key: FilterMode; label: string }[] = [
-    { key: 'sharp', label: 'Pixel thô' },
-    { key: 'crisp', label: 'Sắc mượt' },
-    { key: 'smooth', label: 'Làm mượt' },
+    { key: 'sharp', label: 'Thô' },
+    { key: 'crisp', label: 'Nét' },
+    { key: 'smooth', label: 'Mịn' },
     { key: 'lcd', label: 'LCD' },
     { key: 'crt', label: 'CRT' },
   ];
