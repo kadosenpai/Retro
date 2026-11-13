@@ -35,8 +35,8 @@
 
   const SPEEDS = [0.5, 1, 1.5, 2, 3, 4];
   const SCALES: { key: ScaleMode; label: string }[] = [
+    { key: 'integer', label: 'Mặc định' },
     { key: 'fit', label: 'Vừa khung' },
-    { key: 'integer', label: 'Số nguyên' },
     { key: 'fill', label: 'Lấp đầy' },
     { key: 'wide', label: '4:3' },
   ];
@@ -80,7 +80,7 @@
 
   <h3 class="group-title">Tốc độ game</h3>
   <div class="group">
-    <div class="chips">
+    <div class="chips one-row">
       {#each SPEEDS as v (v)}
         <button class="chip" class:on={speed === v} onclick={() => onspeed(v)}>{v}×</button>
       {/each}
@@ -90,7 +90,7 @@
   <h3 class="group-title">Hình ảnh</h3>
   <div class="group">
     <p class="chip-label">Co giãn màn hình</p>
-    <div class="chips tight">
+    <div class="chips tight one-row">
       {#each SCALES as s (s.key)}
         <button class="chip" class:on={settings.scale === s.key} onclick={() => onchange({ scale: s.key })}>
           {s.label}
@@ -98,7 +98,7 @@
       {/each}
     </div>
     <p class="chip-label">Bộ lọc</p>
-    <div class="chips tight">
+    <div class="chips tight one-row">
       {#each FILTERS as f (f.key)}
         <button class="chip" class:on={settings.filter === f.key} onclick={() => onchange({ filter: f.key })}>
           {f.label}

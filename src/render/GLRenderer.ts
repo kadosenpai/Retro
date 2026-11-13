@@ -139,7 +139,7 @@ export class GLRenderer implements Renderer {
     const ch = gl.drawingBufferHeight;
     const vp = computeViewport(cw, ch, this.srcW, this.srcH, this.opts.scale);
     gl.uniform2f(this.uTexSize, this.srcW, this.srcH);
-    gl.uniform1f(this.uScale, vp.height / this.srcH);
+    gl.uniform2f(this.uScale, vp.width / this.srcW, vp.height / this.srcH);
     gl.uniform1f(this.uMode, GLRenderer.MODE[this.opts.filter] ?? 2);
     gl.viewport(0, 0, cw, ch);
     gl.clearColor(0, 0, 0, 1);

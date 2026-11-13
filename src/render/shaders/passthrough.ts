@@ -23,7 +23,7 @@ varying vec2 vUv;
 uniform sampler2D uTex;
 uniform float uBgr;     // 1.0 với XRGB8888 (byte B,G,R,X)
 uniform vec2 uTexSize;  // kích thước hình gốc (pixel)
-uniform float uScale;   // số pixel màn hình cho mỗi pixel gốc
+uniform vec2 uScale;    // số pixel màn hình cho mỗi pixel gốc, theo từng trục
 uniform float uMode;
 
 vec3 fetch(vec2 uv) {
@@ -57,7 +57,7 @@ void main() {
   }
 
   // Hiệu ứng chỉ có ý nghĩa khi mỗi pixel gốc được phóng đủ lớn.
-  float k = clamp((uScale - 1.5) / 2.5, 0.0, 1.0);
+  float k = clamp((min(uScale.x, uScale.y) - 1.5) / 2.5, 0.0, 1.0);
 
   if (uMode > 2.5 && uMode < 3.5) {
     vec2 e = abs(fr - 0.5) * 2.0;

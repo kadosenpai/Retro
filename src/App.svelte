@@ -203,6 +203,13 @@
     getSetting<Partial<UiSettings>>('ui.settings')
       .then((v) => {
         if (v) settings = { ...settings, ...v, ...sanitizeRenderOptions(v) };
+        // Lần đầu lên bản mới: dùng mặc định hình ảnh mới (Mặc định + Pixel thô).
+        return getSetting<number>('ui.renderDefaults').then((rv) => {
+          if (rv !== 2) {
+            patchSettings({ ...DEFAULT_RENDER_OPTIONS });
+            setSetting('ui.renderDefaults', 2).catch(() => {});
+          }
+        });
       })
       .catch(() => {});
     loadLayouts(gba.id).then((l) => (layouts = l));
@@ -422,7 +429,8 @@
     }
     if (added.length) void requestPersist(); // xin bảo vệ dữ liệu ngay khi có game đầu tiên
     await refreshRoms();
-    if (added.length === 1) await openRom(added[0]);
+    // Không tự mở game: người chơi chạm vào băng trong thư viện để chơi.
+    if (added.length === 1) toast(`Đã thêm "${added[0].name}". Chạm vào băng để chơi.`);
     else if (added.length > 1) toast(`Đã thêm ${added.length} băng`);
   }
 

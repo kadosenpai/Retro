@@ -24,7 +24,7 @@ export interface RenderOptions {
   filter: FilterMode;
 }
 
-export const DEFAULT_RENDER_OPTIONS: RenderOptions = { scale: 'fit', filter: 'crisp' };
+export const DEFAULT_RENDER_OPTIONS: RenderOptions = { scale: 'integer', filter: 'sharp' };
 
 export const SCALE_MODES: ScaleMode[] = ['fit', 'integer', 'fill', 'wide'];
 export const FILTER_MODES: FilterMode[] = ['sharp', 'smooth', 'crisp', 'lcd', 'crt'];
