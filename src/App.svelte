@@ -302,6 +302,7 @@
   }
 
   // ---------- Thư viện ----------
+  const coverCache = new Map<string, string>();
   let romsSeq = 0;
   async function refreshRoms() {
     const seq = ++romsSeq;
@@ -310,9 +311,16 @@
       const urls: Record<string, string> = {};
       for (const r of list) {
         if (!r.cover) continue;
-        const u = await blobToDataUrl(r.cover);
+        // Chỉ chuyển đổi lại khi ảnh bìa thật sự đổi (theo loại + dung lượng).
+        const key = `${r.id}:${r.coverKind ?? ''}:${r.cover.size}`;
+        let u = coverCache.get(key);
+        if (!u) {
+          u = (await blobToDataUrl(r.cover)) ?? undefined;
+          if (u) coverCache.set(key, u);
+        }
         if (u) urls[r.id] = u;
       }
+      if (coverCache.size > 64) coverCache.clear();
       if (seq !== romsSeq) return; // có lần làm mới mới hơn đang chạy
       coverUrls = urls;
       roms = list;
