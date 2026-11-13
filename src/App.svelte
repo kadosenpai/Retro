@@ -40,6 +40,7 @@
     snoozeBackup,
     type StorageInfo,
   } from './storage/Persist';
+  import { blobToDataUrl } from './storage/blobUrl';
   import { applyAutoCover, applyPickedCover } from './app/covers';
   import { toggled, without, withCheat } from './app/cheats';
   import { commitSavImport, exportSavFile, planSavImport, sleep } from './app/savTransfer';
@@ -301,12 +302,18 @@
   }
 
   // ---------- Thư viện ----------
+  let romsSeq = 0;
   async function refreshRoms() {
+    const seq = ++romsSeq;
     try {
       const list = await listRoms(gba.id);
       const urls: Record<string, string> = {};
-      for (const r of list) if (r.cover) urls[r.id] = URL.createObjectURL(r.cover);
-      for (const u of Object.values(coverUrls)) URL.revokeObjectURL(u);
+      for (const r of list) {
+        if (!r.cover) continue;
+        const u = await blobToDataUrl(r.cover);
+        if (u) urls[r.id] = u;
+      }
+      if (seq !== romsSeq) return; // có lần làm mới mới hơn đang chạy
       coverUrls = urls;
       roms = list;
     } catch {
@@ -337,7 +344,9 @@
     await refreshBackupState();
   }
 
+  let slotsSeq = 0;
   async function refreshSlots() {
+    const seq = ++slotsSeq;
     const id = currentRomId;
     const next: (StateRecord | null)[] = Array(STATE_SLOTS).fill(null);
     const urls: (string | null)[] = Array(STATE_SLOTS).fill(null);
@@ -346,13 +355,13 @@
         for (const r of await listStateRecords(id)) {
           if (r.slot < 0 || r.slot >= STATE_SLOTS) continue;
           next[r.slot] = r;
-          urls[r.slot] = r.thumb ? URL.createObjectURL(r.thumb) : null;
+          urls[r.slot] = r.thumb ? await blobToDataUrl(r.thumb) : null;
         }
       } catch {
         /* bỏ qua */
       }
     }
-    for (const u of thumbUrls) if (u) URL.revokeObjectURL(u);
+    if (seq !== slotsSeq) return;
     slots = next;
     thumbUrls = urls;
   }

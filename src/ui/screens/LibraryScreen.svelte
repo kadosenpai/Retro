@@ -34,6 +34,7 @@
 
   let query = $state('');
   let menuOpen = $state(false);
+  let badCover = $state<Record<string, boolean>>({});
 
   const SORTS: { key: SortKey; label: string }[] = [
     { key: 'recent', label: 'Chơi gần đây' },
@@ -141,8 +142,13 @@
   {#each shown as r (r.id)}
     <div class="card glass" class:cur={r.id === currentRomId}>
       <button class="card-main" onclick={() => onopen(r)}>
-        {#if coverUrls[r.id]}
-          <img class="cover" src={coverUrls[r.id]} alt="" />
+        {#if coverUrls[r.id] && !badCover[coverUrls[r.id]]}
+          <img
+            class="cover"
+            src={coverUrls[r.id]}
+            alt=""
+            onerror={() => (badCover = { ...badCover, [coverUrls[r.id]]: true })}
+          />
         {:else}
           <span class="cover" style={coverStyle(r.id)}>{initials(r.name)}</span>
         {/if}
