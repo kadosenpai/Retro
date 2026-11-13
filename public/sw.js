@@ -3,8 +3,8 @@
  * - File còn lại (JS/CSS đã băm tên, nhân giả lập, biểu tượng): ưu tiên bản đã lưu.
  * Khi thay nhân giả lập mà giữ nguyên tên file, hãy tăng số VERSION bên dưới để xoá bản cũ.
  */
-const VERSION = 'v9';
-const CACHE = `retro-web-${VERSION}`;
+const VERSION = 'v1.0.0';
+const CACHE = `retro-${VERSION}`;
 const SCOPE = self.registration.scope;
 const PRECACHE = [
   './',
@@ -46,7 +46,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       for (const k of await caches.keys()) {
-        if (k.startsWith('retro-web-') && k !== CACHE) await caches.delete(k);
+        if (k.startsWith('retro-') && k !== CACHE) await caches.delete(k);
       }
       await self.clients.claim();
     })(),

@@ -1,4 +1,4 @@
-# Retro Web Player
+# Retro
 
 Web chơi game retro (giai đoạn 1: Game Boy Advance) bằng mGBA (libretro) biên dịch ra Wasm.
 

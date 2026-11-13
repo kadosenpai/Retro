@@ -78,7 +78,7 @@ export async function runBackupDownload(): Promise<BackupSummary> {
   const { blob, summary } = await exportBackup();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `retro-web-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `retro-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   await setSetting(K_LAST, Date.now()).catch(() => {});

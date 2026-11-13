@@ -8,7 +8,9 @@ import { STATE_SLOTS, type StateRecord } from './SaveStore';
  * nên sau khi nhập, chỉ cần thêm lại đúng ROM đó là dùng được.
  */
 
-const FORMAT = 'retro-web-backup';
+const FORMAT = 'retro-backup';
+/** Tên định dạng của các file sao lưu cũ (khi web còn tên retro-web) — vẫn nhập được. */
+const LEGACY_FORMAT = 'retro-web-backup';
 const VERSION = 1;
 
 interface BackupFile {
@@ -108,8 +110,8 @@ export async function importBackup(text: string): Promise<BackupSummary> {
   } catch {
     throw new Error('File không phải bản sao lưu hợp lệ');
   }
-  if (raw.format !== FORMAT || !isNum(raw.version)) {
-    throw new Error('File không phải bản sao lưu của Retro Web');
+  if ((raw.format !== FORMAT && raw.format !== (LEGACY_FORMAT as string)) || !isNum(raw.version)) {
+    throw new Error('File không phải bản sao lưu của Retro');
   }
   if (raw.version > VERSION) {
     throw new Error('Bản sao lưu từ phiên bản mới hơn, hãy cập nhật trang web');

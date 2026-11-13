@@ -7,7 +7,7 @@
  */
 export const CORE_SOURCES: string[] = [
   `${import.meta.env.BASE_URL}cores/mgba/`,
-  'https://cdn.jsdelivr.net/gh/kadosenpai/retro-web@main/cores/mgba/',
+  'https://cdn.jsdelivr.net/gh/kadosenpai/retro@main/cores/mgba/',
 ];
 
 /** Chọn nguồn đầu tiên thật sự có file JS của nhân (không phải trang HTML dự phòng của Vite). */
